@@ -52,7 +52,7 @@ class Boundary_Cycle:
     def __init__(self, edges):
         self.edges = edges
         self.leftmost = None
-        self.leftmost_edge = edges[0]
+        self.leftmost_edge = None
 
     def get_leftmost_vertex(self):
         vtx = None
@@ -115,7 +115,7 @@ class DCEL:
         return new_edge
 
     def overlay(self, others, intersections):
-        temp = DCEL()
+        temp = self
         for other in others:
             for vertex in other.vertices:
                 temp.vertices.append(vertex)
@@ -193,25 +193,24 @@ class DCEL:
                 segs, key=lambda x: math.atan2(x.p1.y - vtx.y, x.p1.x - vtx.x) % 360
             )
 
-            # The edges stored here are the ones that have vtx as destination
+            # The edges stored here are the ones that have vtx as origin
             s1, s2, s3, s4 = segs
-            s1.edges.next = s2.edges.twin
-            s2.edges.twin.prev = s1.edges
+            s1.edges.twin.next = s2.edges
+            s2.edges.prev = s1.edges.twin
 
-            s2.edges.next = s3.edges.twin
-            s3.edges.twin.prev = s2.edges
+            s2.edges.twin.next = s3.edges
+            s3.edges.prev = s2.edges.twin
 
-            s3.edges.next = s4.edges.twin
-            s4.edges.twin.prev = s3.edges
+            s3.edges.twin.next = s4.edges
+            s4.edges.prev = s3.edges.twin
 
-            s4.edges.next = s1.edges.twin
-            s1.edges.twin.prev = s4.edges
+            s4.edges.twin.next = s1.edges
+            s1.edges.prev = s4.edges.twin
 
             temp.add_half_edge(ep12)
             temp.add_half_edge(ep11)
             temp.add_half_edge(ep22)
             temp.add_half_edge(ep21)
-        self = temp
         return temp
 
     def find_cycles(self):
@@ -393,9 +392,6 @@ def calcIntersections(layers):
             if seg not in segments:
                 segments.append(seg)
     intersections = []
-
-    # segments = set(segments)
-    # segments = list(segments)
 
     while segments:
         actualSeg = segments.pop()
