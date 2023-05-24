@@ -5,6 +5,11 @@ class Vertex:
         self.coord = (x, y)
         self.incident = None
 
+    def __lt__(self, other):
+        if self.x < other.x and self.y < other.y:
+            return True
+        return False
+
     def __repr__(self):
         return f"({self.x}, {self.y})"
 
@@ -20,6 +25,16 @@ class Half_Edge:
         self.face = face
         self.layer = layer
 
+    def __eq__(self, other):
+        if (
+            self.origin == other.origin
+            and self.twin.origin == other.twin.origin
+            and self.next.origin == other.next.origin
+            and self.prev.origin == other.prev.origin
+        ):
+            return True
+        return False
+
     def __repr__(self):
         return f"Edge from {self.origin} to {self.twin.origin}"
 
@@ -31,6 +46,37 @@ class Face:
 
     def __repr__(self) -> str:
         return f"Outer edge {self.outer_component}"
+
+
+class Boundary_Cycle:
+    def __init__(self, edges):
+        self.edges = edges
+        self.leftmost = None
+        self.leftmost_edge = edges[0]
+
+    def get_leftmost_vertex(self):
+        vtx = None
+        left = None
+        for edge in self.edges:
+            if vtx is None:
+                vtx = edge.origin
+                left = edge
+            if edge.origin < vtx:
+                vtx = edge.origin
+                left = edge
+        self.leftmost = vtx
+        self.leftmost_edge = left
+        return vtx
+
+    def check_if_outer(self) -> bool:
+        p1 = (self.leftmost_edge.prev.origin,)
+        p2 = (self.leftmost_edge.origin,)
+        p3 = (self.leftmost_edge.twin.origin,)
+
+        cross_product = (p2[0].x - p1[0].x) * (p3[0].y - p1[0].y) - (
+            p2[0].y - p1[0].y
+        ) * (p3[0].x - p1[0].x)
+        return cross_product > 0
 
 
 class DCEL:
@@ -160,6 +206,23 @@ class DCEL:
             self.add_half_edge(ep22)
             self.add_half_edge(ep21)
         return self
+
+    def find_cycles(self):
+        boundary_cycles = []
+        for face in self.faces:
+            if face.outer_component is not None:
+                cycle = []
+                start_edge = face.outer_component
+                current_edge = start_edge
+                while True:
+                    cycle.append(current_edge)
+                    current_edge = current_edge.next
+                    if current_edge == start_edge:
+                        break
+                bcycle = Boundary_Cycle(cycle)
+                bcycle.get_leftmost_vertex()
+                boundary_cycles.append(bcycle)
+        return boundary_cycles
 
     def __add__(self, other):
         temp = DCEL()
