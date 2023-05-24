@@ -86,6 +86,17 @@ class DCEL:
             et1.twin = ep12
             ep12.twin = et1
 
+            # New half edges
+            ep21 = Half_Edge(vtx)
+            ep22 = Half_Edge(vtx)
+            # Twin of e1
+            et2 = e2.twin
+            # Set twins
+            e2.twin = ep21
+            ep21.twin = e2
+            et2.twin = ep22
+            ep22.twin = et2
+
             # Set next and prev
             ep11.next = et1.next
             et1.next.prev = ep11
@@ -93,8 +104,61 @@ class DCEL:
             ep12.next = e1.next
             e1.next.prev = ep12
 
+            # Set next and prev
+            ep21.next = et2.next
+            et2.next.prev = ep21
+
+            ep22.next = e2.next
+            e2.next.prev = ep22
+
+            # Here we create 4 segments to create a pivot around the vertex
+
+            s1 = Segment(
+                Point(e1.origin.x, e1.origin.y),
+                Point(e1.twin.origin.x, e1.twin.origin.y),
+                edges=e1.twin,
+            )
+            s2 = Segment(
+                Point(et1.origin.x, et1.origin.y),
+                Point(et1.twin.origin.x, et1.twin.origin.y),
+                edges=et1.twin,
+            )
+            s3 = Segment(
+                Point(e2.origin.x, e2.origin.y),
+                Point(e2.twin.origin.x, e2.twin.origin.y),
+                edges=e2.twin,
+            )
+            s4 = Segment(
+                Point(et2.origin.x, et2.origin.y),
+                Point(et2.twin.origin.x, et2.twin.origin.y),
+                edges=et2.twin,
+            )
+
+            # Sort them basd on angles
+
+            segs = [s1, s2, s3, s4]
+            segs = sorted(
+                segs, key=lambda x: math.atan2(x.p1.y - vtx.y, x.p1.x - vtx.x) % 360
+            )
+
+            # The edges stored here are the ones that have vtx as destination
+            s1, s2, s3, s4 = segs
+            s1.edges.next = s2.edges.twin
+            s2.edges.twin.prev = s1.edges
+
+            s2.edges.next = s3.edges.twin
+            s3.edges.twin.prev = s2.edges
+
+            s3.edges.next = s4.edges.twin
+            s4.edges.twin.prev = s3.edges
+
+            s4.edges.next = s1.edges.twin
+            s1.edges.twin.prev = s4.edges
+
             self.add_half_edge(ep12)
             self.add_half_edge(ep11)
+            self.add_half_edge(ep22)
+            self.add_half_edge(ep21)
         return self
 
     def __add__(self, other):
@@ -129,6 +193,16 @@ class Point:
             return True
         return False
 
+    def __lt__(self, other) -> bool:
+        if self.y < other.y and self.x < other.x:
+            return True
+        return False
+
+    def __gt__(self, other) -> bool:
+        if self.y > other.y and self.x > self.x:
+            return True
+        return False
+
     def __repr__(self):
         return f"({self.x}, {self.y})"
 
@@ -151,8 +225,6 @@ class Line:
 
 class Segment:
     def __init__(self, p1, p2, line=None, name=None, layer=None, edges=None):
-        if p1.y < p2.y:
-            p1, p2 = p2, p1
         self.p1 = p1
         self.p2 = p2
         # self.linename = lineName
@@ -165,6 +237,10 @@ class Segment:
         self.down = None
         self.layer = layer
         self.edges = edges
+
+    def sort_points(self):
+        if self.p1.y < self.p2.y:
+            self.p1, self.p2 = self.p2, self.p1
 
     def intersect(self, other) -> Point:
         if self.line.m == other.line.m and self.line.b == other.line.b:
@@ -225,8 +301,11 @@ class Segment:
             return True
         return False
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def __repr__(self):
-        return f"Segment {self.name}"
+        return f"Segment {self.p1} to {self.p2}"
 
 
 def calcIntersections(layers):
@@ -236,11 +315,14 @@ def calcIntersections(layers):
             partner = edge.twin
             p1 = Point(edge.origin.x, edge.origin.y)
             p2 = Point(partner.origin.x, partner.origin.y)
-            segments.append(Segment(p1, p2, layer=edge.layer, edges=edge))
+            seg = Segment(p1, p2, layer=edge.layer, edges=edge)
+            seg.sort_points()
+            if seg not in segments:
+                segments.append(seg)
     intersections = []
 
-    segments = set(segments)
-    segments = list(segments)
+    # segments = set(segments)
+    # segments = list(segments)
 
     while segments:
         actualSeg = segments.pop()
