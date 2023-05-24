@@ -115,8 +115,14 @@ class DCEL:
         return new_edge
 
     def overlay(self, others, intersections):
+        temp = DCEL()
         for other in others:
-            self = self + other
+            for vertex in other.vertices:
+                temp.vertices.append(vertex)
+            for half_edge in other.half_edges:
+                temp.half_edges.append(half_edge)
+            for face in other.faces:
+                temp.faces.append(face)
         for intersection in intersections:
             vtx = Vertex(intersection.x, intersection.y)
             # Previous half edges
@@ -201,11 +207,12 @@ class DCEL:
             s4.edges.next = s1.edges.twin
             s1.edges.twin.prev = s4.edges
 
-            self.add_half_edge(ep12)
-            self.add_half_edge(ep11)
-            self.add_half_edge(ep22)
-            self.add_half_edge(ep21)
-        return self
+            temp.add_half_edge(ep12)
+            temp.add_half_edge(ep11)
+            temp.add_half_edge(ep22)
+            temp.add_half_edge(ep21)
+        self = temp
+        return temp
 
     def find_cycles(self):
         boundary_cycles = []
@@ -226,9 +233,12 @@ class DCEL:
 
     def __add__(self, other):
         temp = DCEL()
-        temp.vertices += other.vertices
-        temp.half_edges += other.half_edges
-        temp.faces += other.faces
+        for vertex in other.vertices:
+            temp.vertices.append(vertex)
+        for half_edge in other.half_edges:
+            temp.half_edges.append(half_edge)
+        for face in other.faces:
+            temp.faces.append(face)
         return temp
 
     def __repr__(self) -> str:
